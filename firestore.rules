@@ -1,0 +1,105 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signed() { return request.auth != null; }
+    function verified() { return signed() && request.auth.token.email_verified == true; }
+    function workspace(w) { return get(/databases/$(database)/documents/workspaces/$(w)); }
+    function memberPath(w) { return /databases/$(database)/documents/workspaces/$(w)/members/$(request.auth.uid); }
+    function currentRole(w) {
+      return get(memberPath(w)).data.role;
+    }
+    function activeMember(w) {
+      return signed() && exists(memberPath(w)) && get(memberPath(w)).data.status == 'active';
+    }
+    function owner(w) {
+      return signed() && exists(/databases/$(database)/documents/workspaces/$(w))
+        && workspace(w).data.ownerUid == request.auth.uid;
+    }
+    function manager(w) {
+      return owner(w) || (activeMember(w) && currentRole(w) == 'admin');
+    }
+    function collect(w) {
+      return manager(w) || (activeMember(w) && currentRole(w) == 'collector');
+    }
+    match /workspaces/{w} {
+      // The only allowed workspace ID is the creator's UID.
+      allow create: if signed() && request.auth.uid == w
+        && request.resource.data.ownerUid == request.auth.uid;
+      allow get: if owner(w) || activeMember(w);
+      allow list: if false;
+      allow update, delete: if owner(w);
+
+      match /members/{memberUid} {
+        allow get: if signed() && (owner(w) || (request.auth.uid == memberUid && activeMember(w)));
+        allow list: if owner(w);
+        allow create: if signed() && request.resource.data.uid == memberUid
+          && request.resource.data.status == 'active' && (
+            // Self-membership of the owner, during workspace initialization batch.
+            (request.auth.uid == memberUid && request.auth.uid == w
+              && getAfter(/databases/$(database)/documents/workspaces/$(w)).data.ownerUid == w
+              && request.resource.data.role == 'owner')
+            ||
+            // Invitee joins with a private code, matching a verified email account.
+            (verified() && request.auth.uid == memberUid
+              && request.resource.data.email == request.auth.token.email
+              && request.resource.data.inviteCode is string
+              && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteCode)).data.status == 'pending'
+              && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteCode)).data.workspaceId == w
+              && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteCode)).data.email == request.auth.token.email
+              && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteCode)).data.role == request.resource.data.role)
+          );
+        allow update, delete: if owner(w);
+      }
+      match /state/{docId} {
+        // Sensitive data in full; tenant payment summary only in public.
+        allow get: if (docId == 'full' && manager(w))
+          || (docId == 'public' && activeMember(w));
+        allow list: if false;
+        allow create, update: if manager(w)
+          && docId in ['full', 'public']
+          && request.resource.data.json is string
+          && request.resource.data.json.size() < 700000;
+        // Owner initialization batch can create state docs while member isn't in pre-state.
+        allow create: if signed() && request.auth.uid == w
+          && getAfter(/databases/$(database)/documents/workspaces/$(w)).data.ownerUid == w
+          && docId in ['full', 'public']
+          && request.resource.data.json is string && request.resource.data.json.size() < 700000;
+        allow delete: if false;
+      }
+      match /payments/{paymentId} {
+        allow get, list: if activeMember(w);
+        allow create: if collect(w)
+          && request.resource.data.keys().hasOnly(['json','recordedByUid','recordedByEmail','imported','createdAt'])
+          && request.resource.data.keys().hasAll(['json','recordedByUid','recordedByEmail','imported','createdAt'])
+          && request.resource.data.recordedByUid == request.auth.uid
+          && request.resource.data.recordedByEmail == request.auth.token.email
+          && request.resource.data.imported is bool
+          && (!request.resource.data.imported || owner(w))
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.json is string
+          && request.resource.data.json.size() < 15000;
+        // No se permite sobrescribir un cobro existente y falsificar quién lo registró.
+        // Para corregir un cobro debe anularse por un administrador y registrarse uno nuevo.
+        allow update: if false;
+        allow delete: if manager(w);
+      }
+    }
+    match /invites/{code} {
+      allow get: if signed() && (resource.data.createdBy == request.auth.uid
+        || (verified() && resource.data.email == request.auth.token.email));
+      allow list: if signed() && resource.data.createdBy == request.auth.uid;
+      allow create: if verified() && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.workspaceId == request.auth.uid
+        && owner(request.auth.uid)
+        && request.resource.data.status == 'pending'
+        && request.resource.data.role in ['admin','collector','reader']
+        && request.resource.data.email is string;
+      allow update: if verified() && resource.data.status == 'pending'
+        && request.auth.token.email == resource.data.email
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','acceptedBy'])
+        && request.resource.data.status == 'accepted'
+        && request.resource.data.acceptedBy == request.auth.uid;
+      allow delete: if owner(resource.data.workspaceId);
+    }
+  }
+}
