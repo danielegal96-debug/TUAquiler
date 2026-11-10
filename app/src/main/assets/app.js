@@ -1,4 +1,4 @@
-/* TÚAquiler 2.8.1 — formulario por páginas, paquete verificable. */
+/* TÚAquiler 2.8.2 — retroceso y validación obligatoria de formularios. */
 (()=>{'use strict';
 const KEY='tuaquiler.mvp.v1'; // Mantener esta clave para conservar datos existentes.
 const FREE_TENANT_LIMIT=3;
@@ -222,24 +222,24 @@ function tenantModal(tid,pid){
   const term=termsAt(p,t,state.period);
   const options=available.filter(x=>!x.archivedAt||x.id===p.id).map(x=>`<option value="${attr(x.id)}" ${p.id===x.id?'selected':''}>${escapeHtml(x.label)} · Unidad ${escapeHtml(x.unitNumber||'principal')}</option>`).join('');
   const body=`<form id="tenant-form">
-    <div class="setup-stage"><b>Paso 2 de 3 · Arrendatario</b><p>La propiedad se registra primero. Los datos de contrato se completarán después, en otra pantalla.</p></div>
+    <div class="setup-stage"><b>Ficha del arrendatario</b><p>La propiedad se registra primero. Los datos de contrato se completarán después, en otra pantalla.</p></div>
     <div class="field"><label for="f-propertyId">Inmueble / unidad asignada *</label><select id="f-propertyId" name="propertyId" required>${options}</select></div>
     <div class="form-subheading">Identificación del arrendatario</div>
     ${field('name','Nombres y apellidos completos / razón social *',t?.name||'','text','required maxlength="150" autocomplete="name"')}
-    <div class="form-row">${identityTypeOptions(t?.idType||'cedula')}${field('idNumber','Número de documento',t?.idNumber||'','text','maxlength="30" autocomplete="off"')}</div>
-    <p class="hint">La identificación será necesaria para preparar el contrato. Puedes completar este dato después desde la ficha del arrendatario.</p>
+    <div class="form-row">${identityTypeOptions(t?.idType||'cedula')}${field('idNumber','Número de documento *',t?.idNumber||'','text','required maxlength="30" autocomplete="off"')}</div>
+    <p class="hint">El número de documento es obligatorio para identificar al arrendatario y preparar su contrato.</p>
     <div class="form-row">${field('nationality','Nacionalidad (opcional)',t?.nationality||'','text','maxlength="70"')}${field('civilStatus','Estado civil (opcional)',t?.civilStatus||'','text','maxlength="65"')}</div>
     ${field('occupation','Profesión u ocupación (opcional)',t?.occupation||'','text','maxlength="110"')}
     ${field('residenceAddress','Domicilio para notificaciones (opcional)',t?.residenceAddress||'','text','maxlength="240"')}
-    <div class="form-row">${field('phone','Teléfono / WhatsApp',t?.phone||'','tel','maxlength="30" autocomplete="tel"')}${field('email','Correo electrónico',t?.email||'','email','maxlength="140" autocomplete="email"')}</div>
+    <div class="form-row">${field('phone','Teléfono / WhatsApp *',t?.phone||'','tel','required maxlength="30" autocomplete="tel"')}${field('email','Correo electrónico',t?.email||'','email','maxlength="140" autocomplete="email"')}</div>
     <div class="form-subheading">Asignación y alquiler</div>
     ${field('unitNumber','Número de departamento o unidad asignada',t?.unitNumber??p.unitNumber??'','text','readonly aria-readonly="true"')}
     <div class="form-row">${field('startDate','Fecha de ingreso *',t?.startDate||today(),'date','required')}${field('endDate','Fecha de salida acordada',t?.endDate||'','date')}</div>
     <div class="plan-mini">${planBadge()} <span>El plan gratuito permite hasta tres inquilinos activos; los ocupantes no generan otro cupo.</span></div>
-    <div class="notice">${icon('receipt',18)} <div><b>Condiciones particulares</b><br>El canon y el día de cobro son propios de este arrendamiento. Ambos pueden quedar sin definir al registrar a la persona.</div></div>
-    <div class="form-row">${field('rent','Canon mensual (USD)',t?term.rent??'':p.rent??'','number','min="0.01" max="99999999" step="0.01" placeholder="Opcional"')}${field('dueDay','Día de cobro (1 a 31)',t?term.dueDay??'':p.dueDay??'','number','min="1" max="31" step="1" placeholder="Opcional"')}</div>
+    <div class="notice">${icon('receipt',18)} <div><b>Condiciones particulares</b><br>El canon y el día de cobro son propios de este arrendamiento. Ambos son obligatorios al registrar un arrendamiento; solo los valores de referencia de la unidad son opcionales.</div></div>
+    <div class="form-row">${field('rent','Canon mensual (USD) *',t?term.rent??'':p.rent??'','number','min="0.01" max="99999999" step="0.01" placeholder="Ej. 200.00"')}${field('dueDay','Día de cobro (1 a 31) *',t?term.dueDay??'':p.dueDay??'','number','min="1" max="31" step="1" placeholder="Ej. 5"')}</div>
     ${t?field('termsFrom','Aplicar cambios desde este mes',state.period,'month','required'):''}
-    ${field('deposit','Garantía entregada (USD)',t?.deposit??0,'number','min="0" max="99999999" step="0.01"')}
+    ${field('deposit','Garantía entregada (USD, opcional)',t?.deposit??0,'number','min="0" max="99999999" step="0.01"')}
     <div class="field"><label for="f-active">Estado</label><select id="f-active" name="active"><option value="true" ${t?.active!==false?'selected':''}>Ocupando inmueble</option><option value="false" ${t?.active===false?'selected':''}>Inquilino anterior</option></select></div>
     <div class="form-actions"><button type="button" class="btn light" data-action="close-modal">Cancelar</button><button type="submit" class="btn primary">${t?'Guardar cambios':'Registrar arrendatario'}</button></div>
   </form>`;
@@ -382,6 +382,59 @@ function render(){const showApp=!!(authState.signedIn||authState.localAccess);do
 function nav(s){if(isTeam()&&!isManager()&&s==='expenses')return toast('Tu permiso no incluye gastos');state.screen=s;render();window.scrollTo({top:0,behavior:'instant'})}
 function month(delta){let[y,m]=state.period.split('-').map(Number),d=new Date(y,m-1+delta,1);state.period=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;render()}
 let formPageWizard=null;
+// Un campo sin la marca «opcional» debe completarse antes de avanzar o guardar.
+// Únicamente las excepciones aquí documentadas se permiten vacías.
+const OPTIONAL_FIELDS_BY_FORM={
+  'building-form':['city','notes'],
+  'unit-form':['rent','dueDay'],
+  'tenant-form':['nationality','civilStatus','occupation','residenceAddress','email','endDate','deposit'],
+  'contract-form':['tenantNationality','tenantCivilStatus','tenantOccupation','tenantResidenceAddress','tenantPhone','tenantEmail','dueDay','deposit','inventory','exceptionReason'],
+  'owner-form':['address','phone','email'],
+  'payment-form':['note'],
+  'expense-form':['note'],
+  'receipt-demo-form':['note'],
+  'occupant-form':['email','phone']
+};
+function setFormRequirementPolicy(form){
+  const optional=new Set(OPTIONAL_FIELDS_BY_FORM[form.id]||[]);
+  form.querySelectorAll('input[name], select[name], textarea[name]').forEach(control=>{
+    if(control.disabled||control.readOnly||control.type==='hidden'||control.type==='checkbox'||control.type==='radio'||control.type==='button')return;
+    const label=control.id?form.querySelector(`label[for="${control.id}"]`):control.closest('.field')?.querySelector('label');
+    const text=label?.textContent||'';
+    const isOptional=optional.has(control.name)||/\(opcional\)|si aplica|solo si corresponde/i.test(text);
+    control.required=!isOptional;
+    if(label){
+      if(isOptional){if(!/opcional|si aplica|solo si corresponde/i.test(text))label.append(' (opcional)');}
+      else if(!/\*/.test(text))label.append(' *');
+    }
+    if(control.required){
+      control.addEventListener('input',()=>control.setCustomValidity(''));
+      control.addEventListener('change',()=>control.setCustomValidity(''));
+    }
+  });
+  const checkBlankRequired=()=>{
+    const controls=form.querySelectorAll('input[required],select[required],textarea[required]');
+    controls.forEach(el=>{
+      if(!el.disabled&&!el.readOnly&&el.type!=='file'&&typeof el.value==='string'){
+        el.setCustomValidity(el.value.trim()?'':'Este dato es obligatorio');
+      }
+    });
+  };
+  // En formularios de una sola página, el evento submit debe bloquear el
+  // guardado cuando un campo obligatorio contiene únicamente espacios.
+  // Los formularios por etapas tienen su propia validación de todas las páginas.
+  form.addEventListener('submit',event=>{
+    if(form.noValidate)return;
+    checkBlankRequired();
+    const invalid=Array.from(form.querySelectorAll('input,select,textarea'))
+      .find(el=>!el.disabled&&!el.readOnly&&!el.checkValidity());
+    if(invalid){
+      event.preventDefault();event.stopImmediatePropagation();
+      invalid.reportValidity();invalid.focus();
+    }
+  },true);
+  return checkBlankRequired;
+}
 function modal(title,body,after){
   // Los formularios ya no utilizan dialog ni una lámina emergente:
   // ocupan su propia vista, con navegación por secciones cuando son largos.
@@ -395,6 +448,7 @@ function openFormPage(title,body,after){
   container.innerHTML=body;
   const form=container.querySelector('form');
   if(!form)throw new Error('El formulario no existe');
+  const enforceRequired=setFormRequirementPolicy(form);
   formPageWizard=null;
   page.hidden=false;
   // Capturar controles previos antes de reorganizar el formulario.
@@ -444,7 +498,9 @@ function openFormPage(title,body,after){
 function firstInvalidSection(index){
   const wizard=formPageWizard;if(!wizard)return null;
   for(const el of wizard.sections[index].querySelectorAll('input,select,textarea')){
-    if(!el.disabled && !el.checkValidity())return el;
+    if(el.disabled||el.readOnly)continue;
+    if(el.required&&el.type!=='file'&&typeof el.value==='string')el.setCustomValidity(el.value.trim()?'':'Este dato es obligatorio');
+    if(!el.checkValidity())return el;
   }
   return null;
 }
@@ -622,7 +678,7 @@ function handleAction(action,el){let pid=el.dataset.id;
  if(isTeam()&&['new-payment','remind'].includes(action)&&!canCollect())return toast('Tu permiso es de consulta');
  if(isTeam()&&action==='delete-move'&&!isManager())return toast('Solo propietario o administrador pueden borrar movimientos');
  switch(action){case'refresh-email-verification':if(window.TUAAndroid?.refreshVerification)TUAAndroid.refreshVerification();return toast('Comprobando verificación…');case'resend-email-verification':if(window.TUAAndroid?.resendVerification)TUAAndroid.resendVerification();return toast('Solicitando otro correo de verificación…');case'show-collaborators':return nav('collaborators');case'create-team':if(!teamActiveAccount())return toast('Configura Firebase e inicia sesión');if(!confirm('Se publicarán tus inmuebles, inquilinos, pagos y gastos en tu espacio de Firebase. Confirma que tienes autorización para gestionar estos datos y guarda antes un respaldo. ¿Continuar?'))return;window.TUATeam.startWorkspace(JSON.stringify(db));return toast('Activando equipo en Firebase…');case'accept-team':return acceptInviteModal();case'invite-team':return inviteModal();case'exit-team':window.TUATeam?.leaveWorkspace();return switchLocal();case'remove-collaborator':if(!isOwner())return; if(confirm('¿Revocar el acceso de esta persona? Sus registros de pagos permanecerán identificados.'))window.TUATeam.revoke(pid);return;case'cancel-invite':if(isOwner()&&confirm('¿Cancelar este código de invitación?'))window.TUATeam.cancelInvite(pid);return;case'share-invite':{if(!isOwner())return;let inv=team.invites.find(x=>x.code===pid)||team.lastInvite;if(!inv||inv.code!==pid)return;const msg=`Invitación a TÚAquiler. Ingresa con tu correo ${inv.email} verificado y abre Ajustes → Colaboradores → Unirme. Código privado: ${inv.code}. No compartas este código con terceros.`;if(window.TUAAndroid?.shareText)TUAAndroid.shareText(msg);else if(navigator.clipboard?.writeText)navigator.clipboard.writeText(msg).then(()=>toast('Invitación copiada'));else toast('Usa la app Android para compartir la invitación');return;}
- case'show-plans':return nav('plans');case'back-settings':return nav('settings');case'plan-month':state.planCycle='month';return render();case'plan-year':state.planCycle='year';return render();case'new-property':return propertyModal();case'edit-property':return propertyModal(pid);case'new-tenant':return tenantModal(null,pid);case'edit-tenant':return tenantModal(pid);case'new-contract':return contractModal(pid);case'owner-profile':return profileModal();case'new-payment':return paymentModal(pid);case'new-expense':return expenseModal();case'close-modal':return closeModal();case'form-next':return advanceFormStep();case'form-prev':return previousFormStep();case'month-back':return month(-1);case'month-next':return month(1);case'toggle-archived':state.showArchived=!state.showArchived;return render();case'archive':return archive(pid);case'remind':return remind(pid);case'delete-move':return deleteMovement(el.dataset.type,pid);case'export-json':return exportJSON();case'import-json':return $('#import-file').click();case'export-xlsx':return exportXLSX();case'export-csv':return saveFile(`TUAquiler_${state.period}.csv`,makeCsv(),'text/csv;charset=utf-8');case'share-report':return shareReport();case'load-demo':return loadDemo();case'logout':return logout();case'show-login':authState.localAccess=false;sessionStorage.removeItem('tua.local');return render();case'continue-local':authState.localAccess=true;sessionStorage.setItem('tua.local','1');storageKey=KEY;loadCurrentDB();return render();case'google-login':return nativeGoogle();case'remove-demo':if(confirm('¿Eliminar TODOS los datos de esta cuenta? No se puede deshacer.')){db=emptyDB();save();nav('home');toast('Datos reiniciados')}return;}}
+ case'show-plans':return nav('plans');case'back-settings':return nav('settings');case'plan-month':state.planCycle='month';return render();case'plan-year':state.planCycle='year';return render();case'new-property':return propertyModal();case'edit-property':return propertyModal(pid);case'new-tenant':return tenantModal(null,pid);case'edit-tenant':return tenantModal(pid);case'new-contract':return contractModal(pid);case'owner-profile':return profileModal();case'new-payment':return paymentModal(pid);case'new-expense':return expenseModal();case'close-modal':return closeModal();case'form-back':return formPageWizard?.step>0?previousFormStep():closeModal();case'form-next':return advanceFormStep();case'form-prev':return previousFormStep();case'month-back':return month(-1);case'month-next':return month(1);case'toggle-archived':state.showArchived=!state.showArchived;return render();case'archive':return archive(pid);case'remind':return remind(pid);case'delete-move':return deleteMovement(el.dataset.type,pid);case'export-json':return exportJSON();case'import-json':return $('#import-file').click();case'export-xlsx':return exportXLSX();case'export-csv':return saveFile(`TUAquiler_${state.period}.csv`,makeCsv(),'text/csv;charset=utf-8');case'share-report':return shareReport();case'load-demo':return loadDemo();case'logout':return logout();case'show-login':authState.localAccess=false;sessionStorage.removeItem('tua.local');return render();case'continue-local':authState.localAccess=true;sessionStorage.setItem('tua.local','1');storageKey=KEY;loadCurrentDB();return render();case'google-login':return nativeGoogle();case'remove-demo':if(confirm('¿Eliminar TODOS los datos de esta cuenta? No se puede deshacer.')){db=emptyDB();save();nav('home');toast('Datos reiniciados')}return;}}
 document.addEventListener('click',e=>{let tab=e.target.closest('[data-screen]');if(tab){nav(tab.dataset.screen);return}let act=e.target.closest('[data-action]');if(act)handleAction(act.dataset.action,act)});$('#close-modal').addEventListener('click',closeModal);$('#modal').addEventListener('click',e=>{if(e.target===$('#modal'))closeModal()});$('#import-file').addEventListener('change',e=>{importJSON(e.target.files?.[0]);e.target.value=''});window.appBack=()=>{if(!$('#form-page').hidden){if(formPageWizard?.step>0)previousFormStep();else closeModal();return true}if($('#modal').open){closeModal();return true}if(state.screen!=='home'){nav('home');return true}return false};window.tuaAuthUpdate=authUpdate;window.tuaTeamEvent=teamEvent;
 if(authState.signedIn&&window.TUATeam){const wid=localStorage.getItem(currentWorkspaceStorage());if(wid)window.TUATeam.enterWorkspace(wid)}document.addEventListener('submit',e=>{if(e.target.id==='login-form'){e.preventDefault();const f=new FormData(e.target),email=String(f.get('email')||'').trim(),pass=String(f.get('password')||''),mode=e.submitter?.value==='register'?'register':'login';if(!authState.configured||!window.TUAAndroid?.emailAuth)return toast('Configura Firebase para activar el acceso');if(!email.includes('@')||pass.length<6)return toast('Revisa correo y contraseña (mínimo 6 caracteres)');window.TUAAndroid.emailAuth(mode,email,pass);toast('Procesando acceso…')}});render();
 /* TÚAquiler 2.4 — navegación lateral y flujos locales documentados.
@@ -807,10 +863,11 @@ function setupStep(){if(!db.buildings.length)return 1;if(!hasAvailableUnit())ret
 function setupScreen(){
   const step=setupStep();
   const heading=v24Head('Configura tus alquileres','EMPEZAR EN TÚAQUILER','Los registros siguen un orden para evitar inquilinos sin inmueble o departamento.');
-  const steps=`<div class="setup-progress"><span class="${step>=1?'now':''}">1. Inmueble</span><span class="${step>=2?'now':''}">2. Unidad</span><span class="${step>=3?'now':''}">3. Inquilino</span><span>4. Contrato</span></div>`;
+  const progressButton=(label,screen,available,done)=>available?`<button type="button" class="setup-step ${done?'now':''}" data-screen="${screen}" aria-label="Volver a ${label}">${label}</button>`:`<span>${label}</span>`;
+  const steps=`<div class="setup-progress" aria-label="Etapas del registro">${progressButton('1. Inmueble','properties',db.buildings.length>0,step>=1)}${progressButton('2. Unidad','units',db.buildings.length>0,step>=2)}${progressButton('3. Inquilino','tenants',db.properties.length>0,step>=3)}<span>4. Contrato</span></div>`;
   if(step===1)return heading+steps+`<section class="setup-stage"><b>Paso 1 · Registra tu primer inmueble</b><p>Indica el nombre del edificio, casa o conjunto y su ubicación. Aquí no se asignan precios ni se registran personas todavía.</p><button class="btn primary" data-action="new-property">${icon('plus',17)} Registrar inmueble</button></section>`;
-  if(step===2)return heading+steps+`<section class="setup-stage"><b>Paso 2 · Agrega un departamento o unidad</b><p>${escapeHtml(db.buildings[0].name)} ya está registrado. Ahora identifica el departamento, habitación o local que podrás alquilar. Cada unidad tendrá su propio canon de referencia y día de cobro opcionales.</p><button class="btn primary" data-action="new-unit" data-id="${attr(db.buildings[0].id)}">${icon('plus',17)} Agregar primera unidad</button><button class="btn outline" data-screen="properties">Ver inmuebles</button></section>`;
-  if(step===3)return heading+steps+`<section class="setup-stage"><b>Paso 3 · Registra el primer inquilino</b><p>Ya tienes ${db.properties.filter(p=>!p.archivedAt).length} unidades. Asigna a una persona solamente a un departamento disponible. Después podrás crear su contrato en una pantalla aparte.</p><button class="btn primary" data-action="new-tenant">${icon('plus',17)} Registrar inquilino</button><button class="btn outline" data-action="skip-tenant">Todavía no tengo inquilinos</button></section>`;
+  if(step===2)return heading+steps+`<section class="setup-stage"><b>Paso 2 · Agrega un departamento o unidad</b><p>${escapeHtml(db.buildings[0].name)} ya está registrado. Ahora identifica el departamento, habitación o local que podrás alquilar. Cada unidad tendrá su propio canon de referencia y día de cobro opcionales.</p><button class="btn primary" data-action="new-unit" data-id="${attr(db.buildings[0].id)}">${icon('plus',17)} Agregar primera unidad</button><button class="btn outline" data-screen="properties">← Volver a inmuebles</button></section>`;
+  if(step===3)return heading+steps+`<section class="setup-stage"><b>Paso 3 · Registra el primer inquilino</b><p>Ya tienes ${db.properties.filter(p=>!p.archivedAt).length} unidades. Asigna a una persona solamente a un departamento disponible. Después podrás crear su contrato en una pantalla aparte.</p><button class="btn primary" data-action="new-tenant">${icon('plus',17)} Registrar inquilino</button><button class="btn outline" data-screen="units">← Volver a departamentos</button><button class="btn light" data-screen="properties">Editar inmueble</button><button class="btn light" data-action="skip-tenant">Todavía no tengo inquilinos</button></section>`;
   return heading+`<section class="setup-stage"><b>¡Configuración lista!</b><p>Puedes ver cobros, gastos e informes en tu panel de administración.</p><button class="btn primary" data-screen="home">Abrir inicio</button></section>`;
 }
 function buildingModal(buildingId){
@@ -905,7 +962,7 @@ render();
 // TÚAquiler 2.7 — protección definitiva del alta inicial.
 // La navegación y las operaciones se validan nuevamente en la interfaz;
 // la mera presencia de un botón antiguo nunca habilita un inquilino sin unidad.
-const BUILD_TAG='2.8.1';
+const BUILD_TAG='2.8.2';
 function preRegistrationStatus(){
   if(!Array.isArray(db.buildings)||db.buildings.length===0)return 'building';
   if(!Array.isArray(db.properties)||!db.properties.some(p=>!p.archivedAt))return 'unit';
@@ -972,6 +1029,19 @@ handleAction=function(action,el){
     return nav('tenants');
   }
   return v27PreviousAction(action,el);
+};
+// En el asistente, la tecla Atrás de Android permite regresar a pantallas ya completadas.
+const previousBackAction=window.appBack;
+window.appBack=()=>{
+  if(!$('#form-page').hidden||$('#modal').open)return previousBackAction();
+  if(state.screen==='setup'){
+    const step=setupStep();
+    if(step===3){nav('units');return true}
+    if(step===2){nav('properties');return true}
+  }
+  if(state.screen==='units'&&setupStep()<4){nav('properties');return true}
+  if(state.screen==='properties'&&setupStep()<4){nav('setup');return true}
+  return previousBackAction();
 };
 // Aplicar las protecciones inmediatamente al abrir la app, incluso con
 // datos locales de versiones anteriores o una sesión restaurada.

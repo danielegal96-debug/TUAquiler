@@ -91,7 +91,11 @@
     .wizard-page{min-height:220px}
     .form-page .field{margin-bottom:15px}.form-page .field label{display:block}
     @media(min-width:650px){.form-page{border-left:1px solid var(--line);border-right:1px solid var(--line)}}
-  </style>
+      .setup-progress button.setup-step{font-family:inherit;font-size:10px;font-weight:800;line-height:1.25;background:#fff0e5;color:#a65a30;border:1px solid #edcbaf;border-radius:8px;padding:9px 3px;cursor:pointer}
+    .setup-progress button.setup-step:focus-visible{outline:3px solid #233c5e;outline-offset:2px}
+    .form-page-content input:focus:invalid,.form-page-content textarea:focus:invalid,.form-page-content select:focus:invalid{border-color:#c45b47;outline-color:#c45b47}
+    @media(max-width:370px){.setup-progress button.setup-step{font-size:9px}}
+</style>
 </head>
 <body>
   <section id="auth" class="auth-screen" aria-label="Inicio de sesión" hidden></section>
@@ -108,10 +112,10 @@
   <aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Menú principal">
     <div class="drawer-header"><div><div class="drawer-brand">TÚ<span>Aquiler</span></div><p>Administración de alquileres</p></div><button id="drawer-close" class="drawer-close" type="button" data-action="close-drawer" aria-label="Cerrar menú">×</button></div>
     <nav id="drawer-links" aria-label="Secciones"></nav>
-    <div class="drawer-footer">TÚAquiler 2.8.0 · Formularios por páginas</div>
+    <div class="drawer-footer">TÚAquiler 2.8.2 · Validación de campos y retroceso</div>
   </aside>
   <section id="form-page" class="form-page" hidden aria-label="Formulario de TÚAquiler">
-    <header class="form-page-head"><button class="form-page-back" type="button" data-action="close-modal" aria-label="Volver a la administración">←</button><div><h2 id="form-page-title"></h2><p>Completa los datos y guarda al terminar</p></div></header>
+    <header class="form-page-head"><button class="form-page-back" type="button" data-action="form-back" aria-label="Volver a la administración">←</button><div><h2 id="form-page-title"></h2><p>Los campos * son obligatorios. Solo puedes omitir los indicados como opcionales.</p></div></header>
     <div id="form-page-content" class="form-page-content"></div>
   </section>
   <dialog id="modal" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><h2 id="modal-title">Título</h2><button class="x" type="button" id="close-modal" aria-label="Cerrar">×</button></div><div class="modal-body" id="modal-body"></div></dialog>
