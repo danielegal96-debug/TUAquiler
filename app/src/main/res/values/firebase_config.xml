@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Reemplaza estos valores con la configuración pública del proyecto Firebase. -->
+    <string name="firebase_api_key">CONFIGURAR_API_KEY</string>
+    <string name="firebase_app_id">CONFIGURAR_APP_ID</string>
+    <string name="firebase_project_id">CONFIGURAR_PROJECT_ID</string>
+    <string name="firebase_web_client_id">CONFIGURAR_WEB_CLIENT_ID</string>
+</resources>
