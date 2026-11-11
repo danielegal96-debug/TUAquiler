@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "737699617993",
+    "project_id": "tuaquiler",
+    "storage_bucket": "tuaquiler.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:737699617993:android:f5689ecce4b8cb95a3c118",
+        "android_client_info": {
+          "package_name": "ec.tuaquiler.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "737699617993-2q2fboh25can1bnbsafr5jpu44i544t5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDGx9Z-6oA9-WeMh0hG1dYqyPdm_etDvQE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "737699617993-2q2fboh25can1bnbsafr5jpu44i544t5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
