@@ -217,6 +217,38 @@ public class MainActivity extends Activity {
                     .addOnCompleteListener(task->{if(task.isSuccessful())emitAuth(null);else emitAuth("No se pudo ingresar: "+simpleError(task.getException()));});
             });
         }
+        /** Enviar enlace de recuperación sin revelar si la dirección tiene una cuenta. */
+        @JavascriptInterface public void sendPasswordReset(String email) {
+            runOnUiThread(()->{
+                if(!firebaseConfigured||firebaseAuth==null){
+                    emitPasswordResetResult(false,"Firebase aún no está disponible. Intenta más tarde.");
+                    return;
+                }
+                String address=email==null?"":email.trim();
+                if(address.length()>220 || !android.util.Patterns.EMAIL_ADDRESS.matcher(address).matches()){
+                    emitPasswordResetResult(false,"Introduce una dirección de correo válida.");
+                    return;
+                }
+                firebaseAuth.setLanguageCode("es");
+                firebaseAuth.sendPasswordResetEmail(address).addOnCompleteListener(task->{
+                    if(task.isSuccessful() || task.getException() instanceof com.google.firebase.auth.FirebaseAuthInvalidUserException){
+                        emitPasswordResetResult(true,"Si el correo corresponde a una cuenta, recibirás un enlace de recuperación. Revisa también la carpeta de spam.");
+                    }else{
+                        emitPasswordResetResult(false,"No se pudo enviar la solicitud. Comprueba tu conexión e inténtalo de nuevo.");
+                    }
+                });
+            });
+        }
+        private void emitPasswordResetResult(boolean ok,String message){
+            try{
+                JSONObject payload=new JSONObject();
+                payload.put("ok",ok);payload.put("message",message);
+                runOnUiThread(()->{
+                    if(webView!=null)webView.evaluateJavascript(
+                        "window.tuaPasswordResetResult && window.tuaPasswordResetResult("+JSONObject.quote(payload.toString())+")",null);
+                });
+            }catch(Exception ignored){}
+        }
         @JavascriptInterface public void googleAuth() {
             runOnUiThread(()->{
                 if(!firebaseConfigured||firebaseAuth==null){emitAuth("Primero configura Firebase");return;}
