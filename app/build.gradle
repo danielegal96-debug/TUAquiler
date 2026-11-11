@@ -13,7 +13,8 @@ android {
         minSdk 24
         targetSdk 36
         versionCode 13
-        versionName '2.9.1'    }
+        versionName '2.9.1-plazos-flexibles-beta'  
+    }
 
     buildTypes {
         release {
