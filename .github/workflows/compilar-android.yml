@@ -28,7 +28,7 @@ jobs:
           echo "Commit actual: $GITHUB_SHA"
           grep -E 'versionCode|versionName' app/build.gradle
           head -n 1 app/src/main/assets/app.js
-          grep -F "const BUILD_TAG='2.8.2'" app/src/main/assets/app.js
+          grep -F "const BUILD_TAG='2.9.1'" app/src/main/assets/app.js
 
       - name: Generar APK de prueba
         run: gradle --no-daemon :app:assembleDebug
@@ -36,11 +36,10 @@ jobs:
       - name: Renombrar APK con versión y commit
         run: |
           mkdir -p entrega
-          cp app/build/outputs/apk/debug/app-debug.apk "entrega/TUAquiler-v2.8.2-${GITHUB_SHA:0:7}-debug.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "entrega/TUAquiler-v2.9.1-${GITHUB_SHA:0:7}-debug.apk"
       - name: Descargar APK desde Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: TUAquiler-v2.8.2-${{ github.sha }}
-          path: entrega/TUAquiler-v2.8.2-*-debug.apk
+          name: TUAquiler-v2.9.1-${{ github.sha }}
+          path: entrega/TUAquiler-v2.9.1-*-debug.apk
           if-no-files-found: error
-
